@@ -160,7 +160,14 @@
                 snapshot.forEach((doc) => {
                     const d = doc.data();
                     let sClass = (d.status === "Sắp diễn ra") ? "status-sap" : "status-dang";
-                    list.innerHTML += `<tr><td><strong>${d.meetingDate}</strong></td><td><strong>${d.meetingTime}</strong></td><td>${d.content}</td><td>${d.room}</td><td><span class="status ${sClass}">${d.status}</span></td></tr>`;
+                    list.innerHTML += `
+                    <tr>
+                        <td><strong>${d.meetingDate}</strong></td>
+                        <td><strong>${d.meetingTime}</strong></td>
+                        <td>${d.content}</td><td>${d.room}</td>
+                        <td><span class="status ${sClass}">${d.status}</span></td>
+                        <td><button class="btn-delete" data-id="${docId}" style="background:#d32f2f; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">Xóa</button></td>
+                    </tr>`;
                 });
             } catch (error) {
                 list.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Lỗi kết nối Firebase.</td></tr>';
