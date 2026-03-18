@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng nhập - UBND Phường Bình Thới</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-box { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 100%; max-width: 350px; text-align: center; }
+        h2 { color: #d32f2f; margin-top: 0; text-transform: uppercase;}
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .btn-login { background-color: #1976d2; color: white; border: none; padding: 12px; width: 100%; border-radius: 4px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-login:hover { background-color: #1565c0; }
+        #errMsg { color: red; margin-top: 10px; font-size: 14px; display: none; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
+        <p style="color: #666; margin-bottom: 20px;">Lịch Công Tác Phường Bình Thới</p>
+        <input type="email" id="email" placeholder="Nhập Email" required>
+        <input type="password" id="password" placeholder="Nhập Mật khẩu" required>
+        <button class="btn-login" id="btnLogin">ĐĂNG NHẬP</button>
+        <div id="errMsg">Sai email hoặc mật khẩu!</div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        // Import thêm thư viện xác thực (Auth)
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+
+        // --- DÁN CHÌA KHÓA FIREBASE CỦA BẠN VÀO ĐÂY ---
+       const firebaseConfig = {
+          apiKey: "AIzaSyBlDOG4kLOf2Td7uhFCRhRezYeZlnRULMg",
+          authDomain: "lichhopubpbt.firebaseapp.com",
+          projectId: "lichhopubpbt",
+          storageBucket: "lichhopubpbt.firebasestorage.app",
+          messagingSenderId: "878189884385",
+          appId: "1:878189884385:web:fa87d19ef7a5f85ca298a0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        document.getElementById("btnLogin").addEventListener("click", () => {
+            const e = document.getElementById("email").value;
+            const p = document.getElementById("password").value;
+            const btn = document.getElementById("btnLogin");
+            const err = document.getElementById("errMsg");
+
+            if(!e || !p) { err.innerText = "Vui lòng nhập đủ thông tin!"; err.style.display = "block"; return; }
+
+            btn.innerText = "Đang kiểm tra...";
+            err.style.display = "none";
+
+            // Lệnh yêu cầu Firebase kiểm tra tài khoản
+            signInWithEmailAndPassword(auth, e, p)
+                .then((userCredential) => {
+                    // Đúng mật khẩu -> Chuyển sang trang xem lịch
+                    window.location.href = "index.html";
+                })
+                .catch((error) => {
+                    // Sai mật khẩu -> Báo lỗi
+                    err.innerText = "Email hoặc mật khẩu không đúng!";
+                    err.style.display = "block";
+                    btn.innerText = "ĐĂNG NHẬP";
+                });
+        });
+    </script>
+</body>
+</html>

@@ -95,21 +95,37 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getFirestore, collection, getDocs, query, orderBy, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+        // THÊM: Import thư viện Auth để kiểm tra thẻ ra vào
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
         // --- BẠN DÁN CHÌA KHÓA FIREBASE CỦA BẠN VÀO ĐÂY ---
-       const firebaseConfig = {
-          apiKey: "AIzaSyBlDOG4kLOf2Td7uhFCRhRezYeZlnRULMg",
-          authDomain: "lichhopubpbt.firebaseapp.com",
-          projectId: "lichhopubpbt",
-          storageBucket: "lichhopubpbt.firebasestorage.app",
-          messagingSenderId: "878189884385",
-          appId: "1:878189884385:web:fa87d19ef7a5f85ca298a0"
+        const firebaseConfig = {
+            /* Dán mã của bạn vào đây */
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app); // Khởi tạo bảo vệ
 
-        // --- 1. LOGIC ẨN/HIỆN BIỂU MẪU ---
+        // --- KIỂM TRA ĐĂNG NHẬP (NGƯỜI GÁC CỔNG) ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Nếu đã đăng nhập -> Cho phép chạy hàm tải dữ liệu
+                getMeetings();
+                
+                // Thêm nút Đăng xuất nhỏ ở góc phải trên cùng
+                const logoutBtn = document.createElement("button");
+                logoutBtn.innerText = "Đăng xuất";
+                logoutBtn.style.cssText = "position: absolute; top: 20px; right: 20px; padding: 8px 15px; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer;";
+                logoutBtn.onclick = () => { signOut(auth).then(() => window.location.href = "login.html"); };
+                document.body.appendChild(logoutBtn);
+            } else {
+                // Nếu chưa đăng nhập -> Đuổi ra trang login ngay lập tức
+                window.location.href = "login.html";
+            }
+        });
+
+        // --- CÁC HÀM CŨ GIỮ NGUYÊN BÊN DƯỚI ---
         const btnToggleForm = document.getElementById("btnToggleForm");
         const formContainer = document.getElementById("formContainer");
 
@@ -117,39 +133,34 @@
             if (formContainer.style.display === "none" || formContainer.style.display === "") {
                 formContainer.style.display = "block";
                 btnToggleForm.innerText = "x Đóng biểu mẫu";
-                btnToggleForm.style.backgroundColor = "#d32f2f"; // Đổi thành màu đỏ
+                btnToggleForm.style.backgroundColor = "#d32f2f"; 
             } else {
                 formContainer.style.display = "none";
                 btnToggleForm.innerText = "+ Thêm lịch họp mới";
-                btnToggleForm.style.backgroundColor = "#4caf50"; // Trở lại màu xanh
+                btnToggleForm.style.backgroundColor = "#4caf50"; 
             }
         });
 
-        // --- 2. HÀM LẤY VÀ HIỂN THỊ DỮ LIỆU ---
         async function getMeetings() {
             const list = document.getElementById("meetingList");
             try {
                 const q = query(collection(db, "meetings"), orderBy("meetingDate", "asc"), orderBy("meetingTime", "asc"));
                 const snapshot = await getDocs(q);
                 list.innerHTML = ""; 
-
                 if (snapshot.empty) {
                     list.innerHTML = '<tr><td colspan="5" style="text-align: center;">Chưa có lịch họp nào.</td></tr>';
                     return;
                 }
-
                 snapshot.forEach((doc) => {
                     const d = doc.data();
                     let sClass = (d.status === "Sắp diễn ra") ? "status-sap" : "status-dang";
                     list.innerHTML += `<tr><td><strong>${d.meetingDate}</strong></td><td><strong>${d.meetingTime}</strong></td><td>${d.content}</td><td>${d.room}</td><td><span class="status ${sClass}">${d.status}</span></td></tr>`;
                 });
             } catch (error) {
-                console.error("Lỗi tải dữ liệu:", error);
                 list.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Lỗi kết nối Firebase.</td></tr>';
             }
         }
 
-        // --- 3. HÀM LƯU DỮ LIỆU MỚI ---
         const btnSave = document.getElementById("btnSave");
         btnSave.addEventListener("click", async () => {
             const date = document.getElementById("inputDate").value;
@@ -158,47 +169,27 @@
             const room = document.getElementById("inputRoom").value;
             const status = document.getElementById("inputStatus").value;
 
-            if(!date || !time || !content) { 
-                alert("Vui lòng nhập đủ Ngày, Giờ và Nội dung!"); 
-                return; 
-            }
+            if(!date || !time || !content) { alert("Vui lòng nhập đủ Ngày, Giờ và Nội dung!"); return; }
 
             btnSave.innerText = "Đang lưu lên máy chủ...";
             try {
                 await addDoc(collection(db, "meetings"), { 
-                    meetingDate: date, 
-                    meetingTime: time, 
-                    content: content, 
-                    room: room, 
-                    status: status, 
-                    host: "UBND Phường", 
-                    isAutoUpdate: true 
+                    meetingDate: date, meetingTime: time, content: content, room: room, status: status, host: "UBND Phường", isAutoUpdate: true 
                 });
-                
                 alert("Đã thêm lịch họp thành công!");
-                
-                // Xóa trống các ô nhập liệu
                 document.getElementById("inputDate").value = "";
                 document.getElementById("inputTime").value = "";
                 document.getElementById("inputContent").value = "";
-                
-                // Trả nút và ẩn form
                 btnSave.innerText = "LƯU LỊCH LÊN HỆ THỐNG";
                 formContainer.style.display = "none";
                 btnToggleForm.innerText = "+ Thêm lịch họp mới";
                 btnToggleForm.style.backgroundColor = "#4caf50";
-                
-                // Tải lại bảng ngay lập tức
                 getMeetings(); 
-
             } catch (error) {
                 alert("Lỗi kết nối khi lưu!");
                 btnSave.innerText = "LƯU LỊCH LÊN HỆ THỐNG";
             }
         });
-
-        // Chạy hàm lấy dữ liệu khi trang vừa mở lên
-        getMeetings();
     </script>
 </body>
 </html>
