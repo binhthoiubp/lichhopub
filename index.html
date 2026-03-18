@@ -84,6 +84,7 @@
                     <th>Nội dung</th>
                     <th>Phòng họp</th>
                     <th>Trạng thái</th>
+                    <th>Thao tác</th> </tr>
                 </tr>
             </thead>
             <tbody id="meetingList">
@@ -107,7 +108,7 @@
           messagingSenderId: "878189884385",
           appId: "1:878189884385:web:fa87d19ef7a5f85ca298a0"
         };
-
+        import { getFirestore, collection, getDocs, query, orderBy, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app); // Khởi tạo bảo vệ
