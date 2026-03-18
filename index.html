@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quản lý lịch họp - UBND Phường Bình Thới</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { color: #d32f2f; text-align: center; text-transform: uppercase; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+        th { background-color: #1976d2; color: white; }
+        .btn { background-color: #4caf50; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        .btn:hover { background-color: #45a049; }
+        .status { font-weight: bold; padding: 5px 10px; border-radius: 4px; display: inline-block; font-size: 14px;}
+        .status-sap { background-color: #e3f2fd; color: #1976d2; }
+        .status-dang { background-color: #ffebee; color: #d32f2f; }
+        
+        /* CSS cho phần Form nhập liệu (Mặc định ẩn) */
+        #formContainer { background-color: #e8f5e9; padding: 20px; border: 1px solid #c8e6c9; border-radius: 8px; margin-top: 15px; display: none; }
+        .form-row { display: flex; gap: 15px; margin-bottom: 12px; }
+        .form-group { flex: 1; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; color: #2e7d32; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; }
+        .btn-submit { background-color: #1976d2; color: white; margin-top: 10px; padding: 12px 20px; font-size: 16px; font-weight: bold; border: none; border-radius: 4px; cursor: pointer; width: 100%; }
+        .btn-submit:hover { background-color: #1565c0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Lịch Công Tác & Lịch Họp</h2>
+        
+        <button class="btn" id="btnToggleForm">+ Thêm lịch họp mới</button>
+
+        <div id="formContainer">
+            <h3 style="margin-top: 0; color: #2e7d32;">Nhập thông tin lịch họp</h3>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Ngày họp:</label>
+                    <input type="date" id="inputDate">
+                </div>
+                <div class="form-group">
+                    <label>Giờ họp:</label>
+                    <input type="time" id="inputTime">
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label>Nội dung cuộc họp:</label>
+                <input type="text" id="inputContent" placeholder="Ví dụ: Họp giao ban...">
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Phòng họp:</label>
+                    <select id="inputRoom">
+                        <option value="Phòng họp 1">Phòng họp 1</option>
+                        <option value="Phòng họp 2">Phòng họp 2</option>
+                        <option value="Phòng họp 3">Phòng họp 3</option>
+                        <option value="Hội trường lầu 3">Hội trường lầu 3</option>
+                        <option value="Trung tâm Chính trị phường">Trung tâm Chính trị phường</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Trạng thái ban đầu:</label>
+                    <select id="inputStatus">
+                        <option value="Sắp diễn ra">Sắp diễn ra</option>
+                        <option value="Chưa họp">Chưa họp</option>
+                        <option value="Đang họp">Đang họp</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn-submit" id="btnSave">LƯU LỊCH LÊN HỆ THỐNG</button>
+        </div>
+        
+        <table id="meetingTable">
+            <thead>
+                <tr>
+                    <th>Ngày họp</th>
+                    <th>Giờ họp</th>
+                    <th>Nội dung</th>
+                    <th>Phòng họp</th>
+                    <th>Trạng thái</th>
+                </tr>
+            </thead>
+            <tbody id="meetingList">
+                <tr><td colspan="5" style="text-align: center;">Đang tải dữ liệu...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getFirestore, collection, getDocs, query, orderBy, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+        // --- BẠN DÁN CHÌA KHÓA FIREBASE CỦA BẠN VÀO ĐÂY ---
+       const firebaseConfig = {
+          apiKey: "AIzaSyBlDOG4kLOf2Td7uhFCRhRezYeZlnRULMg",
+          authDomain: "lichhopubpbt.firebaseapp.com",
+          projectId: "lichhopubpbt",
+          storageBucket: "lichhopubpbt.firebasestorage.app",
+          messagingSenderId: "878189884385",
+          appId: "1:878189884385:web:fa87d19ef7a5f85ca298a0"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- 1. LOGIC ẨN/HIỆN BIỂU MẪU ---
+        const btnToggleForm = document.getElementById("btnToggleForm");
+        const formContainer = document.getElementById("formContainer");
+
+        btnToggleForm.addEventListener("click", () => {
+            if (formContainer.style.display === "none" || formContainer.style.display === "") {
+                formContainer.style.display = "block";
+                btnToggleForm.innerText = "x Đóng biểu mẫu";
+                btnToggleForm.style.backgroundColor = "#d32f2f"; // Đổi thành màu đỏ
+            } else {
+                formContainer.style.display = "none";
+                btnToggleForm.innerText = "+ Thêm lịch họp mới";
+                btnToggleForm.style.backgroundColor = "#4caf50"; // Trở lại màu xanh
+            }
+        });
+
+        // --- 2. HÀM LẤY VÀ HIỂN THỊ DỮ LIỆU ---
+        async function getMeetings() {
+            const list = document.getElementById("meetingList");
+            try {
+                const q = query(collection(db, "meetings"), orderBy("meetingDate", "asc"), orderBy("meetingTime", "asc"));
+                const snapshot = await getDocs(q);
+                list.innerHTML = ""; 
+
+                if (snapshot.empty) {
+                    list.innerHTML = '<tr><td colspan="5" style="text-align: center;">Chưa có lịch họp nào.</td></tr>';
+                    return;
+                }
+
+                snapshot.forEach((doc) => {
+                    const d = doc.data();
+                    let sClass = (d.status === "Sắp diễn ra") ? "status-sap" : "status-dang";
+                    list.innerHTML += `<tr><td><strong>${d.meetingDate}</strong></td><td><strong>${d.meetingTime}</strong></td><td>${d.content}</td><td>${d.room}</td><td><span class="status ${sClass}">${d.status}</span></td></tr>`;
+                });
+            } catch (error) {
+                console.error("Lỗi tải dữ liệu:", error);
+                list.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Lỗi kết nối Firebase.</td></tr>';
+            }
+        }
+
+        // --- 3. HÀM LƯU DỮ LIỆU MỚI ---
+        const btnSave = document.getElementById("btnSave");
+        btnSave.addEventListener("click", async () => {
+            const date = document.getElementById("inputDate").value;
+            const time = document.getElementById("inputTime").value;
+            const content = document.getElementById("inputContent").value;
+            const room = document.getElementById("inputRoom").value;
+            const status = document.getElementById("inputStatus").value;
+
+            if(!date || !time || !content) { 
+                alert("Vui lòng nhập đủ Ngày, Giờ và Nội dung!"); 
+                return; 
+            }
+
+            btnSave.innerText = "Đang lưu lên máy chủ...";
+            try {
+                await addDoc(collection(db, "meetings"), { 
+                    meetingDate: date, 
+                    meetingTime: time, 
+                    content: content, 
+                    room: room, 
+                    status: status, 
+                    host: "UBND Phường", 
+                    isAutoUpdate: true 
+                });
+                
+                alert("Đã thêm lịch họp thành công!");
+                
+                // Xóa trống các ô nhập liệu
+                document.getElementById("inputDate").value = "";
+                document.getElementById("inputTime").value = "";
+                document.getElementById("inputContent").value = "";
+                
+                // Trả nút và ẩn form
+                btnSave.innerText = "LƯU LỊCH LÊN HỆ THỐNG";
+                formContainer.style.display = "none";
+                btnToggleForm.innerText = "+ Thêm lịch họp mới";
+                btnToggleForm.style.backgroundColor = "#4caf50";
+                
+                // Tải lại bảng ngay lập tức
+                getMeetings(); 
+
+            } catch (error) {
+                alert("Lỗi kết nối khi lưu!");
+                btnSave.innerText = "LƯU LỊCH LÊN HỆ THỐNG";
+            }
+        });
+
+        // Chạy hàm lấy dữ liệu khi trang vừa mở lên
+        getMeetings();
+    </script>
+</body>
+</html>
