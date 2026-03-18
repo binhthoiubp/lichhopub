@@ -146,6 +146,23 @@
                 btnToggleForm.style.backgroundColor = "#4caf50"; 
             }
         });
+        // --- LOGIC XÓA LỊCH HỌP ---
+        document.getElementById("meetingList").addEventListener("click", async (e) => {
+            if (e.target.classList.contains("btn-delete")) {
+                const id = e.target.getAttribute("data-id");
+                // Hiện bảng hỏi xác nhận cho an toàn
+                if (confirm("Bạn có chắc chắn muốn xóa lịch họp này khỏi hệ thống không?")) {
+                    e.target.innerText = "Đang xóa...";
+                    try {
+                        await deleteDoc(doc(db, "meetings", id));
+                        getMeetings(); // Tải lại bảng ngay lập tức
+                    } catch (error) {
+                        alert("Lỗi kết nối, không thể xóa!");
+                        e.target.innerText = "Xóa";
+                    }
+                }
+            }
+        });
 
         async function getMeetings() {
             const list = document.getElementById("meetingList");
