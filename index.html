@@ -17,7 +17,6 @@
         .status-sap { background-color: #e3f2fd; color: #1976d2; }
         .status-dang { background-color: #ffebee; color: #d32f2f; }
         
-        /* CSS cho phần Form nhập liệu (Mặc định ẩn) */
         #formContainer { background-color: #e8f5e9; padding: 20px; border: 1px solid #c8e6c9; border-radius: 8px; margin-top: 15px; display: none; }
         .form-row { display: flex; gap: 15px; margin-bottom: 12px; }
         .form-group { flex: 1; }
@@ -56,19 +55,13 @@
                 <div class="form-group">
                     <label>Phòng họp:</label>
                     <select id="inputRoom">
-                        <option value="Phòng họp 1">Phòng họp 1</option>
-                        <option value="Phòng họp 2">Phòng họp 2</option>
-                        <option value="Phòng họp 3">Phòng họp 3</option>
-                        <option value="Hội trường lầu 3">Hội trường lầu 3</option>
-                        <option value="Trung tâm Chính trị phường">Trung tâm Chính trị phường</option>
+                        <option value="">Đang tải danh sách phòng...</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Trạng thái ban đầu:</label>
                     <select id="inputStatus">
-                        <option value="Sắp diễn ra">Sắp diễn ra</option>
-                        <option value="Chưa họp">Chưa họp</option>
-                        <option value="Đang họp">Đang họp</option>
+                        <option value="">Đang tải trạng thái...</option>
                     </select>
                 </div>
             </div>
@@ -84,22 +77,20 @@
                     <th>Nội dung</th>
                     <th>Phòng họp</th>
                     <th>Trạng thái</th>
-                    <th>Thao tác</th> </tr>
+                    <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody id="meetingList">
-                <tr><td colspan="5" style="text-align: center;">Đang tải dữ liệu...</td></tr>
+                <tr><td colspan="6" style="text-align: center;">Đang tải dữ liệu...</td></tr>
             </tbody>
         </table>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, query, orderBy, addDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-        // THÊM: Import thư viện Auth để kiểm tra thẻ ra vào
+        import { getFirestore, collection, getDocs, query, orderBy, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 
-        // --- BẠN DÁN CHÌA KHÓA FIREBASE CỦA BẠN VÀO ĐÂY ---
         const firebaseConfig = {
           apiKey: "AIzaSyBlDOG4kLOf2Td7uhFCRhRezYeZlnRULMg",
           authDomain: "lichhopubpbt.firebaseapp.com",
@@ -108,33 +99,30 @@
           messagingSenderId: "878189884385",
           appId: "1:878189884385:web:fa87d19ef7a5f85ca298a0"
         };
-        import { getFirestore, collection, getDocs, query, orderBy, addDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const auth = getAuth(app); // Khởi tạo bảo vệ
+        const auth = getAuth(app);
 
-        // --- KIỂM TRA ĐĂNG NHẬP (NGƯỜI GÁC CỔNG) ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // Nếu đã đăng nhập -> Cho phép chạy hàm tải dữ liệu
                 getMeetings();
+                loadRooms();
+                loadStatuses();
                 
-                // Thêm nút Đăng xuất nhỏ ở góc phải trên cùng
                 const logoutBtn = document.createElement("button");
                 logoutBtn.innerText = "Đăng xuất";
                 logoutBtn.style.cssText = "position: absolute; top: 20px; right: 20px; padding: 8px 15px; background: #555; color: white; border: none; border-radius: 4px; cursor: pointer;";
                 logoutBtn.onclick = () => { signOut(auth).then(() => window.location.href = "login.html"); };
                 document.body.appendChild(logoutBtn);
             } else {
-                // Nếu chưa đăng nhập -> Đuổi ra trang login ngay lập tức
                 window.location.href = "login.html";
             }
         });
 
-        // --- CÁC HÀM CŨ GIỮ NGUYÊN BÊN DƯỚI ---
+        // Toggle Form
         const btnToggleForm = document.getElementById("btnToggleForm");
         const formContainer = document.getElementById("formContainer");
-
         btnToggleForm.addEventListener("click", () => {
             if (formContainer.style.display === "none" || formContainer.style.display === "") {
                 formContainer.style.display = "block";
@@ -146,24 +134,47 @@
                 btnToggleForm.style.backgroundColor = "#4caf50"; 
             }
         });
-        // --- LOGIC XÓA LỊCH HỌP ---
-        document.getElementById("meetingList").addEventListener("click", async (e) => {
-            if (e.target.classList.contains("btn-delete")) {
-                const id = e.target.getAttribute("data-id");
-                // Hiện bảng hỏi xác nhận cho an toàn
-                if (confirm("Bạn có chắc chắn muốn xóa lịch họp này khỏi hệ thống không?")) {
-                    e.target.innerText = "Đang xóa...";
-                    try {
-                        await deleteDoc(doc(db, "meetings", id));
-                        getMeetings(); // Tải lại bảng ngay lập tức
-                    } catch (error) {
-                        alert("Lỗi kết nối, không thể xóa!");
-                        e.target.innerText = "Xóa";
-                    }
-                }
-            }
-        });
 
+        // Hàm tải danh sách phòng
+        async function loadRooms() {
+            const roomSelect = document.getElementById("inputRoom");
+            try {
+                const roomSnapshot = await getDocs(collection(db, "rooms"));
+                roomSelect.innerHTML = "";
+                if (roomSnapshot.empty) {
+                    roomSelect.innerHTML = '<option value="">Chưa có phòng nào</option>';
+                    return;
+                }
+                roomSnapshot.forEach((docItem) => {
+                    const r = docItem.data();
+                    roomSelect.innerHTML += `<option value="${r.roomName}">${r.roomName}</option>`;
+                });
+            } catch (e) {
+                roomSelect.innerHTML = '<option value="">Lỗi tải phòng</option>';
+            }
+        }
+        // Hàm tải danh sách trạng thái
+        async function loadStatuses() {
+            const statusSelect = document.getElementById("inputStatus");
+            try {
+                // Giả sử bộ sưu tập trên Firebase của bạn tên là 'statuses'
+                const statusSnapshot = await getDocs(collection(db, "statuses"));
+                statusSelect.innerHTML = "";
+                if (statusSnapshot.empty) {
+                    statusSelect.innerHTML = '<option value="">Chưa có trạng thái</option>';
+                    return;
+                }
+                statusSnapshot.forEach((docItem) => {
+                    const s = docItem.data();
+                    // s.statusName là tên trường bạn đặt trên Firebase (ví dụ: "Đã xong", "Hoãn")
+                    statusSelect.innerHTML += `<option value="${s.statusName}">${s.statusName}</option>`;
+                });
+            } catch (e) {
+                statusSelect.innerHTML = '<option value="">Lỗi tải trạng thái</option>';
+            }
+        }
+
+        // Hàm hiển thị danh sách cuộc họp
         async function getMeetings() {
             const list = document.getElementById("meetingList");
             try {
@@ -171,26 +182,47 @@
                 const snapshot = await getDocs(q);
                 list.innerHTML = ""; 
                 if (snapshot.empty) {
-                    list.innerHTML = '<tr><td colspan="5" style="text-align: center;">Chưa có lịch họp nào.</td></tr>';
+                    list.innerHTML = '<tr><td colspan="6" style="text-align: center;">Chưa có lịch họp nào.</td></tr>';
                     return;
                 }
-                snapshot.forEach((doc) => {
-                    const d = doc.data();
-                    let sClass = (d.status === "Sắp diễn ra") ? "status-sap" : "status-dang";
+                snapshot.forEach((documentItem) => {
+                    const d = documentItem.data();
+                    const id = documentItem.id; // Sửa lỗi docId ở đây
+                   let sClass = "status-sap"; // Mặc định màu xanh
+                        if (d.status === "Đang họp" || d.status === "Khẩn") {
+                            sClass = "status-dang"; // Đổi sang màu đỏ
+                        }
                     list.innerHTML += `
                     <tr>
                         <td><strong>${d.meetingDate}</strong></td>
                         <td><strong>${d.meetingTime}</strong></td>
-                        <td>${d.content}</td><td>${d.room}</td>
+                        <td>${d.content}</td>
+                        <td>${d.room}</td>
                         <td><span class="status ${sClass}">${d.status}</span></td>
-                        <td><button class="btn-delete" data-id="${docId}" style="background:#d32f2f; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">Xóa</button></td>
+                        <td><button class="btn-delete" data-id="${id}" style="background:#d32f2f; color:white; border:none; padding:6px 10px; border-radius:4px; cursor:pointer;">Xóa</button></td>
                     </tr>`;
                 });
             } catch (error) {
-                list.innerHTML = '<tr><td colspan="5" style="text-align: center; color: red;">Lỗi kết nối Firebase.</td></tr>';
+                list.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Lỗi tải dữ liệu.</td></tr>';
             }
         }
 
+        // Sự kiện Xóa
+        document.getElementById("meetingList").addEventListener("click", async (e) => {
+            if (e.target.classList.contains("btn-delete")) {
+                const id = e.target.getAttribute("data-id");
+                if (confirm("Bạn có chắc chắn muốn xóa lịch họp này?")) {
+                    try {
+                        await deleteDoc(doc(db, "meetings", id));
+                        getMeetings();
+                    } catch (err) {
+                        alert("Không thể xóa, vui lòng thử lại!");
+                    }
+                }
+            }
+        });
+
+        // Sự kiện Lưu
         const btnSave = document.getElementById("btnSave");
         btnSave.addEventListener("click", async () => {
             const date = document.getElementById("inputDate").value;
@@ -199,24 +231,19 @@
             const room = document.getElementById("inputRoom").value;
             const status = document.getElementById("inputStatus").value;
 
-            if(!date || !time || !content) { alert("Vui lòng nhập đủ Ngày, Giờ và Nội dung!"); return; }
+            if(!date || !time || !content) { alert("Vui lòng nhập đủ thông tin!"); return; }
 
-            btnSave.innerText = "Đang lưu lên máy chủ...";
+            btnSave.innerText = "Đang lưu...";
             try {
                 await addDoc(collection(db, "meetings"), { 
-                    meetingDate: date, meetingTime: time, content: content, room: room, status: status, host: "UBND Phường", isAutoUpdate: true 
+                    meetingDate: date, meetingTime: time, content: content, room: room, status: status
                 });
-                alert("Đã thêm lịch họp thành công!");
-                document.getElementById("inputDate").value = "";
-                document.getElementById("inputTime").value = "";
-                document.getElementById("inputContent").value = "";
-                btnSave.innerText = "LƯU LỊCH LÊN HỆ THỐNG";
+                alert("Đã lưu thành công!");
+                getMeetings();
                 formContainer.style.display = "none";
-                btnToggleForm.innerText = "+ Thêm lịch họp mới";
-                btnToggleForm.style.backgroundColor = "#4caf50";
-                getMeetings(); 
+                btnSave.innerText = "LƯU LỊCH LÊN HỆ THỐNG";
             } catch (error) {
-                alert("Lỗi kết nối khi lưu!");
+                alert("Lỗi khi lưu dữ liệu!");
                 btnSave.innerText = "LƯU LỊCH LÊN HỆ THỐNG";
             }
         });
